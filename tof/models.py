@@ -13,6 +13,7 @@ from django.db.models import Q
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
+from .fields import TranslatableCharField, TranslatableTextField
 from .managers import TranslationManager
 from .settings import CHANGE_DEFAULT_MANAGER
 from .utils import TranslatableText
@@ -105,21 +106,6 @@ class TranslatableField(models.Model):
         self.remove_translation_from_class()
         super().delete(*args, **kwargs)
 
-    def __get__(self, instance, instance_cls):
-        return instance.get_translation(self.name) if instance else vars(instance_cls).get(self.name)
-
-    def __set__(self, instance, value):
-        attrs = vars(instance)
-        if isinstance(value, TranslatableText):
-            attrs[self.name] = value
-        else:
-            translation = attrs[self.name] = instance.get_translation(self.name)
-            vars(translation)[translation.get_lang() if '_end_init' in attrs else '_origin'] = str(value)
-
-    def __delete__(self, instance):
-        vars(self).pop(self.name, None)
-        instance._meta._field_tof['by_name'].pop(instance._meta._field_tof['by_id'].pop(self.id, self).name, None)
-
     def save_translation(self, instance):
         val = instance.get_translation(self.name)
         if val:
@@ -131,9 +117,11 @@ class TranslatableField(models.Model):
 
     def add_translation_to_class(self, trans_mng=None):
         cls = self.content_type.model_class()
+
         if not hasattr(cls._meta, '_field_tof'):
             cls.__bases__ = (TranslationFieldMixin, ) + cls.__bases__
             cls._meta._field_tof = {'by_name': {}, 'by_id': {}}
+
             if CHANGE_DEFAULT_MANAGER and not isinstance(cls._default_manager, TranslationManager):
                 origin = cls.objects
                 new_mng_cls = type(f'TranslationManager{cls.__name__}', (TranslationManager, type(origin)), {})
@@ -144,11 +132,17 @@ class TranslatableField(models.Model):
                 del cls.objects
                 trans_mng.contribute_to_class(cls, 'objects')
                 origin.contribute_to_class(cls, 'objects_origin')
-        setattr(
-            cls,
-            cls._meta._field_tof['by_name'].setdefault(cls._meta._field_tof['by_id'].setdefault(self.id, self).name, self).name,
-            self,
-        )
+
+        cls._meta._field_tof = {
+            'by_id': {self.id: self},
+            'by_name': {self.name: self}
+        }
+
+        field = getattr(cls, self.name).field
+        field_class = TranslatableCharField if isinstance(field, models.CharField) else TranslatableTextField
+
+        field_mixin = field_class.from_field(self.content_type, self.name, self.id, field)
+        field_mixin.contribute_to_class(cls)
 
     def remove_translation_from_class(self):
         cls = self.content_type.model_class()
@@ -175,7 +169,7 @@ class Language(models.Model):
         ordering = ['iso']
 
     iso = models.CharField(max_length=2, unique=True, primary_key=True)
-    is_active = models.BooleanField(_(u'Active'), default=True)
+    is_active = models.BooleanField(_('Active'), default=True)
 
     def __str__(self):
         return self.iso

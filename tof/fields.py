@@ -4,19 +4,29 @@
 # @Last Modified by:   MaxST
 # @Last Modified time: 2019-11-29 12:04:04
 from django.core.exceptions import ValidationError
-from django.forms.fields import CharField, MultiValueField
+from django.db import models
+from django.forms import fields
 from django.utils.translation import get_language
 
+from .mixins import TranslatableFieldMixin
 from .forms import TranslatableFieldHiddenWidget, TranslatableFieldWidget
 from .utils import TranslatableText
 
 
-class TranslatableFieldFormField(MultiValueField):
+class TranslatableCharField(TranslatableFieldMixin, models.CharField):
+    pass
+
+
+class TranslatableTextField(TranslatableFieldMixin, models.TextField):
+    pass
+
+
+class TranslatableFieldFormField(fields.MultiValueField):
     widget = TranslatableFieldWidget
     hidden_widget = TranslatableFieldHiddenWidget
 
     def __init__(self, field=None, *args, **kwargs):
-        fld = (field or CharField(*args, **kwargs))
+        fld = (field or fields.CharField(*args, **kwargs))
         fld.widget.attrs.update({'lang': get_language()})
         widget = self.widget(fld.widget)
         super().__init__((fld,), widget=widget)

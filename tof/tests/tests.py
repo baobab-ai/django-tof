@@ -27,6 +27,7 @@ from tof.fields import TranslatableFieldFormField
 from tof.models import (
     Language, TranslatableField, Translation, TranslationFieldMixin,
 )
+from tof.descriptors import TranslatableFieldDescriptor
 from tof.settings import FALLBACK_LANGUAGES
 from tof.utils import TranslatableText
 
@@ -137,7 +138,7 @@ class TranslationFieldMixinTestCase(TestCase):
         self.assertEqual(wine1.title.nl, title_nl)
 
     def test_get(self):
-        self.assertIsInstance(Wine.title, TranslatableField)
+        self.assertIsInstance(Wine.title, TranslatableFieldDescriptor)
 
     def test_prefetch(self):
         wine1 = Wine.objects.first()
