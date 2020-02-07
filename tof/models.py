@@ -133,10 +133,8 @@ class TranslatableField(models.Model):
                 trans_mng.contribute_to_class(cls, 'objects')
                 origin.contribute_to_class(cls, 'objects_origin')
 
-        cls._meta._field_tof = {
-            'by_id': {self.id: self},
-            'by_name': {self.name: self}
-        }
+        cls._meta._field_tof['by_id'].update({self.id: self})
+        cls._meta._field_tof['by_name'].update({self.name: self})
 
         field = getattr(cls, self.name).field
         field_class = TranslatableCharField if isinstance(field, models.CharField) else TranslatableTextField
