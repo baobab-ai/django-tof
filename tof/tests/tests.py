@@ -210,6 +210,95 @@ class FilterTestCase(TestCase):
             self.assertEqual(wine1, serch_wine)
 
 
+class OrderByTestCase(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        clean_model(Wine)
+
+        cls.wine1 = mixer.blend(Wine, title='Wine 1', temperature_from=10)
+        cls.wine2 = mixer.blend(Wine, title='Wine 2', temperature_from=20)
+
+        ct = ContentType.objects.get_for_model(Wine)
+        fld = mixer.blend(TranslatableField, name='title', title='title', content_type=ct)
+        fld2 = mixer.blend(TranslatableField, name='description', title='description', content_type=ct)
+
+        lang_en = Language.objects.get(iso='en')
+
+        mixer.blend(Translation, content_object=cls.wine1, field=fld, lang=lang_en, value='Wine 1 title')
+        mixer.blend(Translation, content_object=cls.wine1, field=fld2, lang=lang_en, value='Wine 2 desc')
+
+        mixer.blend(Translation, content_object=cls.wine2, field=fld, lang=lang_en, value='Wine 2 title')
+        mixer.blend(Translation, content_object=cls.wine2, field=fld2, lang=lang_en, value='Wine 2 desc')
+
+    def test_order_by_one_field_asc(self):
+        ordered_wines = [wine for wine in Wine.objects.order_by('title')]
+        expected_ordered_wines = [self.wine1, self.wine2]
+
+        self.assertEqual(ordered_wines, expected_ordered_wines)
+
+        ordered_wines = [wine for wine in Wine.objects.order_by('description')]
+        expected_ordered_wines = [self.wine1, self.wine2]
+
+        self.assertEqual(ordered_wines, expected_ordered_wines)
+
+    def test_order_by_one_field_desc(self):
+        ordered_wines = [wine for wine in Wine.objects.order_by('-title')]
+        expected_ordered_wines = [self.wine2, self.wine1]
+
+        self.assertEqual(ordered_wines, expected_ordered_wines)
+
+        ordered_wines = [wine for wine in Wine.objects.order_by('-description')]
+        expected_ordered_wines = [self.wine1, self.wine2]
+
+        self.assertEqual(ordered_wines, expected_ordered_wines)
+
+    def test_order_by_two_fields_asc(self):
+        ordered_wines = [wine for wine in Wine.objects.order_by('description', 'title')]
+        expected_ordered_wines = [self.wine1, self.wine2]
+
+        self.assertEqual(ordered_wines, expected_ordered_wines)
+
+        ordered_wines = [wine for wine in Wine.objects.order_by('-description', 'title')]
+        expected_ordered_wines = [self.wine1, self.wine2]
+
+        self.assertEqual(ordered_wines, expected_ordered_wines)
+
+    def test_order_by_two_fields_desc(self):
+        ordered_wines = [wine for wine in Wine.objects.order_by('-description', '-title')]
+        expected_ordered_wines = [self.wine2, self.wine1]
+
+        self.assertEqual(ordered_wines , expected_ordered_wines)
+
+        ordered_wines = [wine for wine in Wine.objects.order_by('description', '-title')]
+        expected_ordered_wines = [self.wine2, self.wine1]
+
+        self.assertEqual(ordered_wines, expected_ordered_wines)
+
+    def test_order_by_random(self):
+        ordered_wines = [wine for wine in Wine.objects.order_by('?')]
+        expected_ordered_wines_1 = [self.wine1, self.wine2]
+        expected_ordered_wines_2 = [self.wine2, self.wine1]
+
+        self.assertTrue(ordered_wines == expected_ordered_wines_1 or ordered_wines == expected_ordered_wines_2)
+
+    def test_order_by_two_order_by(self):
+        ordered_wines = [wine for wine in Wine.objects.order_by('title').order_by('description')]
+        expected_ordered_wines = [self.wine1, self.wine2]
+
+        self.assertEqual(ordered_wines, expected_ordered_wines)
+
+        ordered_wines = [wine for wine in Wine.objects.order_by('description').order_by('title')]
+        expected_ordered_wines = [self.wine1, self.wine2]
+
+        self.assertEqual(ordered_wines, expected_ordered_wines)
+
+    def test_order_by_with_no_translatable_field(self):
+        ordered_wines = [wine for wine in Wine.objects.order_by('-temperature_from', 'title')]
+        expected_ordered_wines = [self.wine2, self.wine1]
+
+        self.assertEqual(ordered_wines, expected_ordered_wines)
+
+
 class TranslatableTextTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
